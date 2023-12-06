@@ -6,6 +6,8 @@
 [![rustc 1.41.0](https://img.shields.io/badge/rust-1.41%2B-orange.svg)](https://img.shields.io/badge/rust-1.41%2B-orange.svg)
 [![Documentation](https://docs.rs/similar/badge.svg)](https://docs.rs/similar)
 
+**Fork:** Wasm does not have a reliable way to implement time. This fork simply strips the crate `similar` from everything using time.
+
 Similar is a dependency free crate for Rust that implements different diffing
 algorithms and high level interfaces for it. It is based on the
 [pijul](https://pijul.org/) implementation of the Patience algorithm and
