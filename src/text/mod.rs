@@ -2,7 +2,6 @@
 use std::borrow::Cow;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use std::time::{Duration, Instant};
 
 mod abstraction;
 #[cfg(feature = "inline")]
@@ -19,20 +18,6 @@ use crate::iter::{AllChangesIter, ChangesIter};
 use crate::udiff::UnifiedDiff;
 use crate::{capture_diff_deadline, get_diff_ratio, group_diff_ops, Algorithm, DiffOp};
 
-#[derive(Debug, Clone, Copy)]
-enum Deadline {
-    Absolute(Instant),
-    Relative(Duration),
-}
-
-impl Deadline {
-    fn into_instant(self) -> Instant {
-        match self {
-            Deadline::Absolute(instant) => instant,
-            Deadline::Relative(duration) => Instant::now() + duration,
-        }
-    }
-}
 
 /// A builder type config for more complex uses of [`TextDiff`].
 ///
@@ -41,7 +26,6 @@ impl Deadline {
 pub struct TextDiffConfig {
     algorithm: Algorithm,
     newline_terminated: Option<bool>,
-    deadline: Option<Deadline>,
 }
 
 impl TextDiffConfig {
@@ -50,24 +34,6 @@ impl TextDiffConfig {
     /// The default algorithm is [`Algorithm::Myers`].
     pub fn algorithm(&mut self, alg: Algorithm) -> &mut Self {
         self.algorithm = alg;
-        self
-    }
-
-    /// Sets a deadline for the diff operation.
-    ///
-    /// By default a diff will take as long as it takes.  For certain diff
-    /// algorithms like Myer's and Patience a maximum running time can be
-    /// defined after which the algorithm gives up and approximates.
-    pub fn deadline(&mut self, deadline: Instant) -> &mut Self {
-        self.deadline = Some(Deadline::Absolute(deadline));
-        self
-    }
-
-    /// Sets a timeout for thediff operation.
-    ///
-    /// This is like [`deadline`](Self::deadline) but accepts a duration.
-    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
-        self.deadline = Some(Deadline::Relative(timeout));
         self
     }
 
@@ -318,7 +284,6 @@ impl TextDiffConfig {
         new: Cow<'bufs, [&'new T]>,
         newline_terminated: bool,
     ) -> TextDiff<'old, 'new, 'bufs, T> {
-        let deadline = self.deadline.map(|x| x.into_instant());
         let ops = if old.len() > 100 || new.len() > 100 {
             let ih = IdentifyDistinct::<u32>::new(&old[..], 0..old.len(), &new[..], 0..new.len());
             capture_diff_deadline(
@@ -327,7 +292,6 @@ impl TextDiffConfig {
                 ih.old_range(),
                 ih.new_lookup(),
                 ih.new_range(),
-                deadline,
             )
         } else {
             capture_diff_deadline(
@@ -336,7 +300,6 @@ impl TextDiffConfig {
                 0..old.len(),
                 &new[..],
                 0..new.len(),
-                deadline,
             )
         };
         TextDiff {

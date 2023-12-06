@@ -41,7 +41,6 @@ pub(crate) mod utils;
 
 use std::hash::Hash;
 use std::ops::{Index, Range};
-use std::time::Instant;
 
 pub use capture::Capture;
 pub use compact::Compact;
@@ -74,7 +73,7 @@ where
     Old::Output: Hash + Eq + Ord,
     New::Output: PartialEq<Old::Output> + Hash + Eq + Ord,
 {
-    diff_deadline(alg, d, old, old_range, new, new_range, None)
+    diff_deadline(alg, d, old, old_range, new, new_range)
 }
 
 /// Creates a diff between old and new with the given algorithm with deadline.
@@ -93,7 +92,6 @@ pub fn diff_deadline<Old, New, D>(
     old_range: Range<usize>,
     new: &New,
     new_range: Range<usize>,
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     Old: Index<usize> + ?Sized,
@@ -103,9 +101,9 @@ where
     New::Output: PartialEq<Old::Output> + Hash + Eq + Ord,
 {
     match alg {
-        Algorithm::Myers => myers::diff_deadline(d, old, old_range, new, new_range, deadline),
-        Algorithm::Patience => patience::diff_deadline(d, old, old_range, new, new_range, deadline),
-        Algorithm::Lcs => lcs::diff_deadline(d, old, old_range, new, new_range, deadline),
+        Algorithm::Myers => myers::diff_deadline(d, old, old_range, new, new_range),
+        Algorithm::Patience => patience::diff_deadline(d, old, old_range, new, new_range),
+        Algorithm::Lcs => lcs::diff_deadline(d, old, old_range, new, new_range),
     }
 }
 
@@ -124,11 +122,10 @@ pub fn diff_slices_deadline<D, T>(
     d: &mut D,
     old: &[T],
     new: &[T],
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     D: DiffHook,
     T: Eq + Hash + Ord,
 {
-    diff_deadline(alg, d, old, 0..old.len(), new, 0..new.len(), deadline)
+    diff_deadline(alg, d, old, 0..old.len(), new, 0..new.len())
 }

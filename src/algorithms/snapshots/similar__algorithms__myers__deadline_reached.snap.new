@@ -1,0 +1,45 @@
+---
+source: src/algorithms/myers.rs
+assertion_line: 402
+expression: d.into_inner().ops()
+---
+[
+    Equal {
+        old_index: 0,
+        new_index: 0,
+        len: 10,
+    },
+    Replace {
+        old_index: 10,
+        old_len: 1,
+        new_index: 10,
+        new_len: 1,
+    },
+    Equal {
+        old_index: 11,
+        new_index: 11,
+        len: 14,
+    },
+    Replace {
+        old_index: 25,
+        old_len: 1,
+        new_index: 25,
+        new_len: 1,
+    },
+    Equal {
+        old_index: 26,
+        new_index: 26,
+        len: 24,
+    },
+    Replace {
+        old_index: 50,
+        old_len: 1,
+        new_index: 50,
+        new_len: 1,
+    },
+    Equal {
+        old_index: 51,
+        new_index: 51,
+        len: 49,
+    },
+]

@@ -10,7 +10,6 @@
 //! by Pierre-Étienne Meunier.
 use std::hash::Hash;
 use std::ops::{Index, Range};
-use std::time::Instant;
 
 use crate::algorithms::{myers, DiffHook, NoFinishHook, Replace};
 
@@ -33,7 +32,7 @@ where
     New::Output: PartialEq<Old::Output> + Hash + Eq,
     D: DiffHook,
 {
-    diff_deadline(d, old, old_range, new, new_range, None)
+    diff_deadline(d, old, old_range, new, new_range)
 }
 
 /// Patience diff algorithm with deadline.
@@ -48,7 +47,6 @@ pub fn diff_deadline<Old, New, D>(
     old_range: Range<usize>,
     new: &New,
     new_range: Range<usize>,
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     Old: Index<usize> + ?Sized,
@@ -70,7 +68,6 @@ where
         new_current: new_range.start,
         new_end: new_range.end,
         new_indexes: &new_indexes,
-        deadline,
     });
     myers::diff_deadline(
         &mut d,
@@ -78,7 +75,6 @@ where
         0..old_indexes.len(),
         &new_indexes,
         0..new_indexes.len(),
-        deadline,
     )?;
     Ok(())
 }
@@ -93,7 +89,6 @@ struct Patience<'old, 'new, 'd, Old: ?Sized, New: ?Sized, D> {
     new_current: usize,
     new_end: usize,
     new_indexes: &'new [UniqueItem<'new, New>],
-    deadline: Option<Instant>,
 }
 
 impl<'old, 'new, 'd, Old, New, D> DiffHook for Patience<'old, 'new, 'd, Old, New, D>
@@ -125,7 +120,6 @@ where
                 self.old_current..self.old_indexes[old].original_index(),
                 self.new,
                 self.new_current..self.new_indexes[new].original_index(),
-                self.deadline,
             )?;
             self.old_current = self.old_indexes[old].original_index();
             self.new_current = self.new_indexes[new].original_index();
@@ -140,7 +134,6 @@ where
             self.old_current..self.old_end,
             self.new,
             self.new_current..self.new_end,
-            self.deadline,
         )
     }
 }

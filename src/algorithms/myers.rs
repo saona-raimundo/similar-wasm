@@ -20,7 +20,6 @@
 //! For potential improvements here see [similar#15](https://github.com/mitsuhiko/similar/issues/15).
 
 use std::ops::{Index, IndexMut, Range};
-use std::time::Instant;
 
 use crate::algorithms::utils::{common_prefix_len, common_suffix_len, is_empty_range};
 use crate::algorithms::DiffHook;
@@ -41,7 +40,7 @@ where
     D: DiffHook,
     New::Output: PartialEq<Old::Output>,
 {
-    diff_deadline(d, old, old_range, new, new_range, None)
+    diff_deadline(d, old, old_range, new, new_range)
 }
 
 /// Myers' diff algorithm with deadline.
@@ -56,7 +55,6 @@ pub fn diff_deadline<Old, New, D>(
     old_range: Range<usize>,
     new: &New,
     new_range: Range<usize>,
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     Old: Index<usize> + ?Sized,
@@ -68,7 +66,7 @@ where
     let mut vb = V::new(max_d);
     let mut vf = V::new(max_d);
     conquer(
-        d, old, old_range, new, new_range, &mut vf, &mut vb, deadline,
+        d, old, old_range, new, new_range, &mut vf, &mut vb
     )?;
     d.finish()
 }
@@ -148,7 +146,6 @@ fn find_middle_snake<Old, New>(
     new_range: Range<usize>,
     vf: &mut V,
     vb: &mut V,
-    deadline: Option<Instant>,
 ) -> Option<(usize, usize)>
 where
     Old: Index<usize> + ?Sized,
@@ -174,12 +171,6 @@ where
     assert!(vb.len() >= d_max);
 
     for d in 0..d_max as isize {
-        // are we running for too long?
-        if let Some(deadline) = deadline {
-            if Instant::now() > deadline {
-                break;
-            }
-        }
 
         // Forward path
         for k in (-d..=d).rev().step_by(2) {
@@ -268,7 +259,6 @@ fn conquer<Old, New, D>(
     mut new_range: Range<usize>,
     vf: &mut V,
     vb: &mut V,
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     Old: Index<usize> + ?Sized,
@@ -306,12 +296,11 @@ where
         new_range.clone(),
         vf,
         vb,
-        deadline,
     ) {
         let (old_a, old_b) = split_at(old_range, x_start);
         let (new_a, new_b) = split_at(new_range, y_start);
-        conquer(d, old, old_a, new, new_a, vf, vb, deadline)?;
-        conquer(d, old, old_b, new, new_b, vf, vb, deadline)?;
+        conquer(d, old, old_a, new, new_a, vf, vb)?;
+        conquer(d, old, old_b, new, new_b, vf, vb)?;
     } else {
         d.delete(
             old_range.start,
@@ -340,7 +329,7 @@ fn test_find_middle_snake() {
     let mut vf = V::new(max_d);
     let mut vb = V::new(max_d);
     let (x_start, y_start) =
-        find_middle_snake(a, 0..a.len(), b, 0..b.len(), &mut vf, &mut vb, None).unwrap();
+        find_middle_snake(a, 0..a.len(), b, 0..b.len(), &mut vf, &mut vb).unwrap();
     assert_eq!(x_start, 4);
     assert_eq!(y_start, 1);
 }
@@ -373,43 +362,4 @@ fn test_pat() {
     let mut d = crate::algorithms::Capture::new();
     diff(&mut d, a, 0..a.len(), b, 0..b.len()).unwrap();
     insta::assert_debug_snapshot!(d.ops());
-}
-
-#[test]
-fn test_deadline_reached() {
-    use std::ops::Index;
-    use std::time::Duration;
-
-    let a = (0..100).collect::<Vec<_>>();
-    let mut b = (0..100).collect::<Vec<_>>();
-    b[10] = 99;
-    b[50] = 99;
-    b[25] = 99;
-
-    struct SlowIndex<'a>(&'a [usize]);
-
-    impl<'a> Index<usize> for SlowIndex<'a> {
-        type Output = usize;
-
-        fn index(&self, index: usize) -> &Self::Output {
-            std::thread::sleep(Duration::from_millis(1));
-            &self.0[index]
-        }
-    }
-
-    let slow_a = SlowIndex(&a);
-    let slow_b = SlowIndex(&b);
-
-    // don't give it enough time to do anything interesting
-    let mut d = crate::algorithms::Replace::new(crate::algorithms::Capture::new());
-    diff_deadline(
-        &mut d,
-        &slow_a,
-        0..a.len(),
-        &slow_b,
-        0..b.len(),
-        Some(Instant::now() + Duration::from_millis(50)),
-    )
-    .unwrap();
-    insta::assert_debug_snapshot!(d.into_inner().ops());
 }

@@ -4,7 +4,6 @@
 //! * space `O(MN)`
 use std::collections::BTreeMap;
 use std::ops::{Index, Range};
-use std::time::Instant;
 
 use crate::algorithms::utils::{common_prefix_len, common_suffix_len, is_empty_range};
 use crate::algorithms::DiffHook;
@@ -30,7 +29,7 @@ where
     D: DiffHook,
     New::Output: PartialEq<Old::Output>,
 {
-    diff_deadline(d, old, old_range, new, new_range, None)
+    diff_deadline(d, old, old_range, new, new_range)
 }
 
 /// LCS diff algorithm.
@@ -45,7 +44,6 @@ pub fn diff_deadline<Old, New, D>(
     old_range: Range<usize>,
     new: &New,
     new_range: Range<usize>,
-    deadline: Option<Instant>,
 ) -> Result<(), D::Error>
 where
     Old: Index<usize> + ?Sized,
@@ -75,7 +73,6 @@ where
         common_prefix_len..(old_range.len() - common_suffix_len),
         new,
         common_prefix_len..(new_range.len() - common_suffix_len),
-        deadline,
     );
     let mut old_idx = 0;
     let mut new_idx = 0;
@@ -145,7 +142,6 @@ fn make_table<Old, New>(
     old_range: Range<usize>,
     new: &New,
     new_range: Range<usize>,
-    deadline: Option<Instant>,
 ) -> Option<BTreeMap<(usize, usize), u32>>
 where
     Old: Index<usize> + ?Sized,
@@ -157,13 +153,6 @@ where
     let mut table = BTreeMap::new();
 
     for i in (0..new_len).rev() {
-        // are we running for too long?  give up on the table
-        if let Some(deadline) = deadline {
-            if Instant::now() > deadline {
-                return None;
-            }
-        }
-
         for j in (0..old_len).rev() {
             let val = if new[i] == old[j] {
                 table.get(&(i + 1, j + 1)).map_or(0, |&x| x) + 1
@@ -184,7 +173,7 @@ where
 
 #[test]
 fn test_table() {
-    let table = make_table(&vec![2, 3], 0..2, &vec![0, 1, 2], 0..3, None).unwrap();
+    let table = make_table(&vec![2, 3], 0..2, &vec![0, 1, 2], 0..3).unwrap();
     let expected = {
         let mut m = BTreeMap::new();
         m.insert((1, 0), 1);
